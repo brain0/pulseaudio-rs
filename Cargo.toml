@@ -1,0 +1,14 @@
+[package]
+name = "pulseaudio"
+version = "0.1.0"
+authors = ["Thomas Bächler <thomas@archlinux.org>"]
+
+[dependencies]
+libpulse-sys = "*"
+libc = "*"
+mio = "*"
+tokio-core = "*"
+futures = { git = "https://github.com/brain0/futures-rs.git", branch = "has_current" }
+
+[patch.crates-io]
+futures = { git = "https://github.com/brain0/futures-rs.git", branch = "has_current" }
