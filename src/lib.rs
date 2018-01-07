@@ -8,3 +8,4 @@ pub mod error;
 pub mod mainloop_api;
 pub mod tokio_mainloop_api;
 pub mod tokio_mainloop;
+mod refcount;
