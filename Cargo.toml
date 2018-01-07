@@ -13,3 +13,8 @@ future_pubsub = "*"
 
 [patch.crates-io]
 futures = { git = "https://github.com/brain0/futures-rs.git", branch = "has_current" }
+
+[[bin]]
+name = "pulseaudio-rs"
+path = "src/main.rs"
+doc = false
