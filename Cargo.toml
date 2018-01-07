@@ -9,6 +9,7 @@ libc = "*"
 mio = "*"
 tokio-core = "*"
 futures = { git = "https://github.com/brain0/futures-rs.git", branch = "has_current" }
+future_pubsub = "*"
 
 [patch.crates-io]
 futures = { git = "https://github.com/brain0/futures-rs.git", branch = "has_current" }
