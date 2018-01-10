@@ -30,6 +30,7 @@ fn xmain() -> Result<(), ()> {
                 pulseaudio::context::PaContextState::Failed => { quit_send.take().unwrap().send(Err(())).unwrap(); },
                 pulseaudio::context::PaContextState::Terminated => { quit_send.take().unwrap().send(Ok(())).unwrap(); },
                 pulseaudio::context::PaContextState::Ready => {
+                    quit_send.take().unwrap().send(Ok(())).unwrap();
                     let ctx = ctx.clone();
                     h.spawn(Timeout::new(Duration::from_secs(5), &h).unwrap().and_then(move |_| {
                         eprintln!("Disconnecting");
