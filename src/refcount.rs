@@ -1,8 +1,8 @@
 use std::ptr::null_mut;
 
 pub unsafe trait RefCountable {
-    fn decref(ptr: *mut Self);
     fn incref(ptr: *mut Self);
+    fn decref(ptr: *mut Self);
 }
 
 #[derive(Debug)]
@@ -29,5 +29,19 @@ impl<T: RefCountable> Clone for RefCounted<T> {
 impl<T: RefCountable> Drop for RefCounted<T> {
     fn drop(&mut self) {
         RefCountable::decref(self.0);
+    }
+}
+
+macro_rules! pa_refcountable {
+    ($t:ident, $incref:ident, $decref:ident) => {
+        unsafe impl ::refcount::RefCountable for $t {
+            fn incref(ptr: *mut $t) {
+                unsafe { $incref(ptr) };
+            }
+
+            fn decref(ptr: *mut $t) {
+                unsafe { $decref(ptr) };
+            }
+        }
     }
 }

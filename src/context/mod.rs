@@ -78,12 +78,4 @@ impl<M: PaMainLoopApi> PaContext<M> {
     }
 }
 
-unsafe impl super::refcount::RefCountable for pa_context {
-    fn decref(ptr: *mut Self) {
-        unsafe { pa_context_unref(ptr) };
-    }
-
-    fn incref(ptr: *mut Self) {
-        unsafe { pa_context_ref(ptr) };
-    }
-}
+pa_refcountable!(pa_context, pa_context_ref, pa_context_unref);

@@ -12,11 +12,12 @@ extern crate mio;
 extern crate tokio_core;
 extern crate future_pubsub;
 
+#[macro_use]
+mod refcount;
 pub mod context;
 pub mod error;
 pub mod mainloop_api;
 pub mod tokio_mainloop_api;
-mod refcount;
 
 /// A "prelude" for crates using the `pulseaudio` crate.
 pub mod prelude {
