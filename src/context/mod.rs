@@ -11,6 +11,7 @@ use refcount::RefCounted;
 
 pub use self::state::PaContextState;
 pub use self::state::PaContextStateStream;
+use ::explicit_cleanup::ExplicitCleanup;
 
 /// The basic object for a connection to a pulseaudio server.
 ///
@@ -18,9 +19,9 @@ pub use self::state::PaContextStateStream;
 /// There is no need for more than one context per application, unless connections to multiple servers are needed.
 #[derive(Clone)]
 pub struct PaContext<M: PaMainLoopApi> {
-    raw: RefCounted<pa_context>,
+    raw: ExplicitCleanup<RefCounted<pa_context>>,
     mainloop_api: M,
-    state_cb_receivers: state::StateCallbackReceivers,
+    state_cb_receivers: ExplicitCleanup<state::StateCallbackReceivers>,
 }
 
 impl<M: PaMainLoopApi> PaContext<M> {
@@ -39,9 +40,9 @@ impl<M: PaMainLoopApi> PaContext<M> {
         }
         let state_cb_receivers = state::StateCallbackReceivers::new(raw.clone());
         PaContext {
-            raw: raw,
+            raw: ExplicitCleanup::new(raw),
             mainloop_api: api.clone(),
-            state_cb_receivers,
+            state_cb_receivers: ExplicitCleanup::new(state_cb_receivers),
         }
     }
 
@@ -75,6 +76,13 @@ impl<M: PaMainLoopApi> PaContext<M> {
     /// Terminate the context connection immediately.
     pub fn disconnect(&self) {
         unsafe { pa_context_disconnect(self.raw.get()) }
+    }
+}
+
+impl<M: PaMainLoopApi> Drop for PaContext<M> {
+    fn drop(&mut self) {
+        ExplicitCleanup::cleanup(&mut self.state_cb_receivers);
+        ExplicitCleanup::cleanup(&mut self.raw);
     }
 }
 

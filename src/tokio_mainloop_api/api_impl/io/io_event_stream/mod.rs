@@ -12,6 +12,7 @@ use std::rc::{Rc, Weak};
 use self::poll_evented_level::PollEventedFdLevel;
 use super::flags;
 use super::super::TokioMainLoopApiImpl;
+use ::explicit_cleanup::ExplicitCleanup;
 
 struct IoEventStreamData {
     task: Option<Task>,
@@ -20,8 +21,8 @@ struct IoEventStreamData {
 
 struct IoEventStream {
     parent: Weak<TokioMainLoopApiImpl>,
-    poll: PollEventedFdLevel,
-    data: Option<Rc<RefCell<IoEventStreamData>>>,
+    poll: ExplicitCleanup<PollEventedFdLevel>,
+    data: ExplicitCleanup<Rc<RefCell<IoEventStreamData>>>,
 }
 
 pub struct IoEventStreams(RefCell<HashMap<RawFd, Weak<RefCell<IoEventStreamData>>>>);
@@ -39,8 +40,8 @@ impl IoEventStreams {
         let weak = parent.weak_ref(); 
         parent.handle.spawn(IoEventStream {
             parent: parent.weak_ref(),
-            poll: PollEventedFdLevel::new(fd, &parent.handle).unwrap(),
-            data: Some(data),
+            poll: ExplicitCleanup::new(PollEventedFdLevel::new(fd, &parent.handle).unwrap()),
+            data: ExplicitCleanup::new(data),
         }.for_each(move |(events, ready)| {
             if let Some(p) = weak.upgrade() {
                 events.into_iter().for_each(|e| {
@@ -107,7 +108,7 @@ impl IoEventStream {
         }
 
         {
-            let mut data = self.data.as_ref().unwrap().borrow_mut();
+            let mut data = self.data.borrow_mut();
             if match data.task {
                 Some(ref task) => ! task.will_notify_current(),
                 None => true
@@ -117,7 +118,7 @@ impl IoEventStream {
         }
 
         let mut events = Ready::empty();
-        self.data.as_ref().unwrap().borrow().events.iter().for_each(|(_, &m)| events |= m);
+        self.data.borrow().events.iter().for_each(|(_, &m)| events |= m);
         if events.is_empty() {
             return Async::Ready(None);
         }
@@ -125,7 +126,7 @@ impl IoEventStream {
         match self.poll.poll_ready(events)
         {
             Async::Ready(ready) => {
-                let v = self.data.as_ref().unwrap().borrow().events.iter()
+                let v = self.data.borrow().events.iter()
                         .filter(|&(_, m)| !(*m & ready).is_empty())
                         .map(|(i, m)| (*i, *m))
                         .collect(); 
@@ -144,8 +145,8 @@ impl Stream for IoEventStream {
         let res = self.do_poll();
         match res {
             Async::Ready(None) => {
-                self.poll.unregister().expect("Inconsistent state");
-                self.data.take();
+                ExplicitCleanup::cleanup(&mut self.poll);
+                ExplicitCleanup::cleanup(&mut self.data);
             },
             Async::NotReady | Async::Ready(Some(_)) => ()
         };

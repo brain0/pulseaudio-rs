@@ -14,6 +14,7 @@ extern crate future_pubsub;
 
 #[macro_use]
 mod refcount;
+mod explicit_cleanup;
 pub mod context;
 pub mod error;
 pub mod mainloop_api;

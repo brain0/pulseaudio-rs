@@ -7,11 +7,12 @@ use std::os::unix::io::RawFd;
 use tokio_core::reactor::{Handle, PollEvented};
 
 use super::super::flags;
+use ::explicit_cleanup::ExplicitCleanup;
 
 pub struct PollEventedFdLevel {
     handle: Handle,
     fd: RawFd,
-    poll_evented: Option<PollEvented<OwnedEventedFd>>,
+    poll_evented: ExplicitCleanup<PollEvented<OwnedEventedFd>>,
 }
 
 impl PollEventedFdLevel {
@@ -19,13 +20,12 @@ impl PollEventedFdLevel {
         Ok(PollEventedFdLevel {
             handle: handle.clone(),
             fd,
-            poll_evented: Some(PollEvented::new(OwnedEventedFd(fd), handle)?),
+            poll_evented: ExplicitCleanup::new(PollEvented::new(OwnedEventedFd(fd), handle)?),
         })
     }
 
     pub fn poll_ready(&self, mask: Ready) -> Async<Ready> {
-        let poll_evented = self.poll_evented.as_ref().unwrap();
-        match poll_evented.poll_ready(mask) {
+        match self.poll_evented.poll_ready(mask) {
             Async::Ready(mut ready) => {
                 // Simulate level semantics by calling poll() on the file descriptor
                 // and checking for actual readiness.
@@ -38,10 +38,10 @@ impl PollEventedFdLevel {
                 }
 
                 if !(mask & !Ready::writable()).is_empty() && (ready & !Ready::writable()).is_empty() {
-                    poll_evented.need_read();
+                    self.poll_evented.need_read();
                 }
                 if !(mask & Ready::writable()).is_empty() && (ready & Ready::writable()).is_empty() {
-                    poll_evented.need_write();
+                    self.poll_evented.need_write();
                 }
                 if ready.is_empty() {
                     Async::NotReady
@@ -52,15 +52,11 @@ impl PollEventedFdLevel {
             Async::NotReady => Async::NotReady,
         }
     }
-
-    pub fn unregister(&mut self) -> Option<()> {
-        self.poll_evented.take().map(|poll_evented| drop(poll_evented.deregister(&self.handle)))
-    }
 }
 
 impl Drop for PollEventedFdLevel {
     fn drop(&mut self) {
-        self.unregister();
+        drop(ExplicitCleanup::cleanup(&mut self.poll_evented).unwrap().deregister(&self.handle));
     }
 }
 
