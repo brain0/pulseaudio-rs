@@ -156,10 +156,6 @@ impl Future for DeferredEventFuture {
             }
 
             loop {
-                if data.quitting.get() {
-                    return Ok(Async::Ready(()));
-                }
-
                 let mut abort = true;
 
                 {

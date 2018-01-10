@@ -6,8 +6,6 @@ mod timer;
 
 use libc;
 use libpulse_sys::*;
-use futures::unsync::oneshot;
-use std::cell::Cell;
 use std::cell::RefCell;
 use std::ptr::{null, null_mut};
 use std::rc::Rc;
@@ -21,8 +19,6 @@ pub struct TokioMainLoopApiImpl {
     handle: Handle,
     weak_self_ref: RefCell<Option<Weak<TokioMainLoopApiImpl>>>,
     api: pa_mainloop_api,
-    quit_notify: Cell<Option<oneshot::Sender<libc::c_int>>>,
-    quitting: Cell<bool>,
     timers: RefCell<Timers>,
     deferred: RefCell<Deferred>,
     io: RefCell<Io>,
@@ -36,13 +32,6 @@ impl TokioMainLoopApiImpl {
     fn weak_ref(&self) -> Weak<TokioMainLoopApiImpl> {
         self.weak_self_ref.borrow().as_ref().unwrap().clone()
     }
-
-    fn quit(&self, retval: libc::c_int) {
-        self.quitting.set(true);
-        if let Some(f) = self.quit_notify.take() {
-            f.send(retval).expect("Unable to send quit signal");
-        }
-    }
 }
 
 impl Drop for TokioMainLoopApiImpl {
@@ -53,7 +42,7 @@ impl Drop for TokioMainLoopApiImpl {
     }
 }
 
-pub fn new(quit_notify: Option<oneshot::Sender<libc::c_int>>, handle: &Handle) -> Rc<TokioMainLoopApiImpl> {
+pub fn new(handle: &Handle) -> Rc<TokioMainLoopApiImpl> {
     let mut intern = Rc::new(TokioMainLoopApiImpl {
         handle: handle.clone(),
         api: pa_mainloop_api {
@@ -73,8 +62,6 @@ pub fn new(quit_notify: Option<oneshot::Sender<libc::c_int>>, handle: &Handle) -
             quit: Some(quit_cb),
         },
         weak_self_ref: RefCell::new(None),
-        quit_notify: Cell::new(quit_notify),
-        quitting: Cell::new(false),
         timers: RefCell::new(Timers::new()),
         deferred: RefCell::new(Deferred::new()),
         io: RefCell::new(Io::new()),
@@ -173,9 +160,9 @@ unsafe extern "C" fn defer_set_destroy_cb(e: *mut pa_defer_event,
     Deferred::set_destroy(e, cb)
 }
 
-unsafe extern "C" fn quit_cb(a: *mut pa_mainloop_api,
-                             retval: libc::c_int) {
-    run_api_function(a, |data| data.quit(retval))
+unsafe extern "C" fn quit_cb(_a: *mut pa_mainloop_api,
+                             _retval: libc::c_int) {
+    eprintln!("The quit callback is not implemented!");
 }
 
 unsafe fn ref_from_ptr<'a, T>(ptr: *const T) -> Option<&'a T> {

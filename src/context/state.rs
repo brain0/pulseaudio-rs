@@ -7,19 +7,27 @@ use std::ptr::null_mut;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+/// State of a [`PaContext`](struct.PaContext.html).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PaContextState {
+    /// The context hasn't been connected yet.
     Unconnected,
+    /// A connection is being established.
     Connecting,
+    /// The client is authorizing itself to the daemon.
     Authorizing,
+    /// The client is passing its application name to the daemon.
     SettingName,
+    /// The connection is established, the context is ready to execute operations.
     Ready,
+    /// The connection failed or was disconnected.
     Failed,
+    /// The connection was terminated cleanly.
     Terminated
 }
 
 impl PaContextState {
-    pub fn new(s: pa_context_state_t) -> Result<PaContextState, ()> {
+    fn new(s: pa_context_state_t) -> Result<PaContextState, ()> {
         match s {
             PA_CONTEXT_UNCONNECTED => Ok(PaContextState::Unconnected),
             PA_CONTEXT_CONNECTING => Ok(PaContextState::Connecting),
@@ -46,6 +54,7 @@ struct StateCallbackReceiversImpl {
 #[derive(Clone)]
 pub struct StateCallbackReceivers(Rc<StateCallbackReceiversImpl>);
 
+/// A stream for receiving context status updates.
 pub struct PaContextStateStream(pubsub::UnboundedReceiver<PaContextState>);
 
 impl StateCallbackReceivers {
